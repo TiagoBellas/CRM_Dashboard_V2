@@ -1,0 +1,67 @@
+# =============================================================================
+# Declarative Automation Bundle (antigo "Databricks Asset Bundle")
+# Define TUDO o que é implementado no workspace: job de ETL + Databricks App.
+#   databricks bundle validate -t dev
+#   databricks bundle deploy   -t dev
+#   databricks bundle run crm_reporting_etl -t dev
+#   databricks bundle run crm_reporting_app -t dev
+# =============================================================================
+bundle:
+  name: crm_performance_reporting
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catálogo Unity Catalog do ambiente
+  warehouse_id:
+    description: ID do SQL Warehouse usado pela app (Compute > SQL Warehouses > detalhes)
+  source_mode:
+    description: "federation (Synapse) ou sample (CSV sintéticos no volume)"
+    default: sample
+  source_catalog:
+    description: Foreign catalog do Synapse PRD
+    default: synapse_crm_prd
+  leads_prd_catalog:
+    description: Foreign catalog para os Leads PRD
+    default: synapse_crm_prd
+  leads_dev_catalog:
+    description: Foreign catalog para os Leads DEV (origem atual no Power BI)
+    default: synapse_crm_dev
+  leads_source_active:
+    description: "Origem ATIVA da tabela Leads: DEV (igual ao PBI atual) ou PRD - decisão de negócio pendente"
+    default: DEV
+  admin_group:
+    description: Grupo que vê todos os dados e a página de Administração
+    default: crm_report_admins
+  app_auth_mode:
+    description: "obo (user authorization, recomendado) ou sp (service principal)"
+    default: obo
+  schedule_pause:
+    description: PAUSED ou UNPAUSED
+    default: PAUSED
+
+targets:
+  dev:
+    mode: development          # prefixa os recursos com [dev <utilizador>] e pausa agendamentos
+    default: true
+    workspace:
+      host: https://adb-XXXXXXXXXXXXXXXX.X.azuredatabricks.net   # <- ALTERAR
+    variables:
+      catalog: crm_reporting_dev
+      warehouse_id: "<id-do-warehouse-dev>"                       # <- ALTERAR
+      source_mode: sample
+
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-XXXXXXXXXXXXXXXX.X.azuredatabricks.net   # <- ALTERAR
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: "<application-id-do-sp-de-producao>" # <- ALTERAR
+    variables:
+      catalog: crm_reporting_prd
+      warehouse_id: "<id-do-warehouse-prd>"                       # <- ALTERAR
+      source_mode: federation
+      schedule_pause: UNPAUSED

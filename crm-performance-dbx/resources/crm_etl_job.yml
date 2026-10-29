@@ -1,0 +1,62 @@
+# Job diário: substitui o "Scheduled refresh" do dataset Power BI.
+resources:
+  jobs:
+    crm_reporting_etl:
+      name: "CRM Reporting - ETL diario"
+      description: "Synapse -> bronze -> silver -> gold (+RLS). Migração do PBI CRM_Performance_Reporting_MVP_v1."
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"     # todos os dias às 06:00
+        timezone_id: Europe/Lisbon
+        pause_status: ${var.schedule_pause}
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      email_notifications:
+        on_failure: []                             # <- adicionar e-mails da equipa
+      parameters:                                  # chegam a TODOS os notebooks como widgets
+        - { name: catalog,             default: "${var.catalog}" }
+        - { name: source_mode,         default: "${var.source_mode}" }
+        - { name: source_catalog,      default: "${var.source_catalog}" }
+        - { name: leads_prd_catalog,   default: "${var.leads_prd_catalog}" }
+        - { name: leads_dev_catalog,   default: "${var.leads_dev_catalog}" }
+        - { name: leads_source_active, default: "${var.leads_source_active}" }
+        - { name: admin_group,         default: "${var.admin_group}" }
+      tasks:
+        - task_key: reference_data
+          notebook_task:
+            notebook_path: ../src/nb_run_sql.py
+            base_parameters: { sql_file: 01_reference_data.sql }
+
+        - task_key: load_rls_access
+          depends_on: [ { task_key: reference_data } ]
+          notebook_task:
+            notebook_path: ../src/nb_load_rls.py
+
+        - task_key: bronze
+          depends_on: [ { task_key: reference_data } ]
+          max_retries: 2
+          min_retry_interval_millis: 300000
+          notebook_task:
+            notebook_path: ../src/nb_bronze.py
+
+        - task_key: silver_pipeline
+          depends_on: [ { task_key: bronze } ]
+          notebook_task:
+            notebook_path: ../src/nb_run_sql.py
+            base_parameters: { sql_file: 20_silver_pipeline.sql }
+
+        - task_key: silver_other_and_rls
+          depends_on: [ { task_key: silver_pipeline }, { task_key: load_rls_access } ]
+          notebook_task:
+            notebook_path: ../src/nb_run_sql.py
+            base_parameters: { sql_file: 21_silver_other.sql }
+
+        - task_key: gold_views
+          depends_on: [ { task_key: silver_other_and_rls } ]
+          notebook_task:
+            notebook_path: ../src/nb_run_sql.py
+            base_parameters: { sql_file: 30_gold_views.sql }
+
+        - task_key: validate
+          depends_on: [ { task_key: gold_views } ]
+          notebook_task:
+            notebook_path: ../src/nb_validate.py

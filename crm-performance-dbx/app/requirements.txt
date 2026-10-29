@@ -1,0 +1,7 @@
+# Versões testadas (ver tests/ e docs/03_Testes_UAT.md)
+streamlit==1.66.1
+plotly==7.1.0
+pandas>=2.2       # testado com 2.x e 3.0
+numpy>=1.26,<3
+databricks-sql-connector>=4.0,<5
+databricks-sdk>=0.40

@@ -1,0 +1,29 @@
+# Databricks App (substitui o relatório Power BI publicado)
+resources:
+  apps:
+    crm_reporting_app:
+      name: crm-performance-reporting          # minúsculas, números e hífens
+      description: "DMS Reporting - CRM Performance (migração do Power BI)"
+      source_code_path: ../app
+      # User authorization (OBO): a app consulta o SQL Warehouse com a identidade do utilizador.
+      user_api_scopes:
+        - sql
+      resources:
+        - name: sql-warehouse                  # <- tem de coincidir com "valueFrom" do app.yaml
+          description: SQL Warehouse para as queries da app
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+      config:
+        command: ["streamlit", "run", "app.py"]
+        env:
+          - { name: DATABRICKS_WAREHOUSE_ID, value_from: sql-warehouse }
+          - { name: CRM_CATALOG,       value: "${var.catalog}" }
+          - { name: AUTH_MODE,         value: "${var.app_auth_mode}" }
+          - { name: APP_BACKEND,       value: databricks }
+          - { name: CACHE_TTL_SECONDS, value: "600" }
+      permissions:
+        - group_name: crm_report_users
+          level: CAN_USE
+        - group_name: crm_report_admins
+          level: CAN_MANAGE

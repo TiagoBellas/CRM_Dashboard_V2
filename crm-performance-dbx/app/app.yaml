@@ -1,0 +1,18 @@
+# Configuração de runtime da Databricks App (usada em deploy pela UI ou CLI "databricks apps deploy").
+# Se fizer deploy com o bundle (databricks.yml), os valores da secção "config" do bundle prevalecem.
+command: ["streamlit", "run", "app.py"]
+env:
+  # ID do SQL Warehouse: vem do RECURSO da app chamado "sql-warehouse"
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  # Catálogo do ambiente (dev: crm_reporting_dev | prd: crm_reporting_prd)
+  - name: CRM_CATALOG
+    value: "crm_reporting_dev"
+  # obo = user authorization (RECOMENDADO: a RLS é aplicada pelo Unity Catalog)
+  # sp  = app authorization (fallback: a app aplica a RLS com o e-mail do utilizador)
+  - name: AUTH_MODE
+    value: "obo"
+  - name: APP_BACKEND
+    value: "databricks"
+  - name: CACHE_TTL_SECONDS
+    value: "600"
